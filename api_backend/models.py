@@ -61,5 +61,24 @@ class UserModel(AbstractUser):
 
     objects = UserManager()
 
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+
     def __str__(self):
         return self.email
+
+
+class Shop(models.Model):
+
+    name = models.CharField(max_length=48, verbose_name='Название')
+    url = models.URLField(null=True, blank=True, verbose_name='Ссылка')
+    owner = models.OneToOneField(UserModel, verbose_name='Владелец магазина', on_delete=models.CASCADE)
+    state = models.BooleanField(default=True, verbose_name='Статус получения заказов')
+
+    class Meta:
+        verbose_name = 'Магазин'
+        verbose_name_plural = 'Магазины'
+
+    def __str__(self):
+        return self.name
