@@ -1,5 +1,4 @@
-from django.urls import path, include
-# from api_backend.views import AccountRegister, AccountLogin
+from django.urls import path
 from api_backend import views as v
 
 
@@ -10,6 +9,5 @@ urlpatterns = [
     path('shop/<int:shop_id>', v.ShopDetailView.as_view()),
     path('shop/update/', v.ShopUpdate.as_view()),
     path('categories/', v.CategoryView.as_view()),
-    path('products/', v.ProductView.as_view()),
-    path('check/', v.check)
+    path('products/', v.ProductView.as_view())
 ]

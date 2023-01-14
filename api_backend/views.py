@@ -7,8 +7,9 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 import requests
 from yaml import load as load_yaml, Loader
+from pprint import pprint
 
-from .models import UserModel, Shop, Category, Product
+from .models import UserModel, Shop, Category, Product, Parameter, ProductParameter
 from .serializers import UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer
 
 
@@ -37,8 +38,14 @@ def check_token(token):
         return None
 
 
-def check(request):
-    return JsonResponse({'Status': 'OK', 'View': 'check'})
+def check_shop(user_id, shop_name):
+    try:
+        shop = Shop.objects.get(owner=user_id)
+        if shop.name == shop_name:
+            return True
+        return False
+    except ObjectDoesNotExist:
+        return True
 
 
 class AccountRegister(APIView):
@@ -201,6 +208,44 @@ class ShopUpdate(APIView):
             file = requests.get(url).content
             data = load_yaml(file, Loader=Loader)
 
-            return JsonResponse({'Status': 'OK'})
+            # pprint(data)
+            shop_name = data.get('shop')
+            if shop_name is None:
+                return JsonResponse({'Status': 'Ошибка!', 'Error': 'Отсутствует название магазина'})
+            else:
+                # if check_shop(user.id, shop_name):
+                shop,_ = Shop.objects.get_or_create(name=shop_name, owner=user.id)
+
+            products = data.get('goods')
+            if products is None:
+                return JsonResponse({'Status': 'Ошибка!', 'Error': 'Отсутствует список товаров'})
+            for product in products:
+                category, _ = Category.objects.get_or_create(name=product['category'])
+                new_product, _ = Product.objects.update_or_create(
+                    shop=shop, external_id=product['external_id'],
+                    defaults={
+                        'name': product['name'],
+                        'category': category,
+                        'quantity': product['quantity'],
+                        'price': product['price'],
+                        'price_rcc': product['price_rcc']
+                    }
+                )
+                # new_product = Product.objects.create(
+                #     name=product['name'],
+                #     category=category,
+                #     shop=shop,
+                #     external_id=product['external_id'],
+                #     quantity=product['quantity'],
+                #     price=product['price'],
+                #     price_rcc=product['price_rcc']
+                # )
+                for pname, pvalue in product['parameters'].items():
+                    param, _ = Parameter.objects.get_or_create(name=pname)
+
+                    ProductParameter.objects.update_or_create(product=new_product, parameter=param,
+                                                              defaults={'value': pvalue})
+
+            return JsonResponse({'Status': 'OK', 'Message': 'Товары успешно добавлены!'})
 
         return JsonResponse({'Status': 'Ошибка!', 'Error': 'Не указан URL'})
