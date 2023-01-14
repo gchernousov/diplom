@@ -11,8 +11,8 @@ services:
     ports:
       - "5400:5432"
     environment:
-      POSTGRES_DB: "diplom_db_1"
-      POSTGRES_USER: "admin"
-      POSTGRES_PASSWORD: "qwerty123"
+      POSTGRES_DB: "diplom_db_2"
+      POSTGRES_USER: "admin_diplom"
+      POSTGRES_PASSWORD: "netology123"
     volumes:
       - pgdata:/var/lib/postgresql/data

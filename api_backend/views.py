@@ -3,9 +3,13 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.http import JsonResponse
 from django.db.models import ObjectDoesNotExist
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
+import requests
+from yaml import load as load_yaml, Loader
 
-from .models import UserModel, Shop
-from .serializers import UserSerializer, ShopSerializer
+from .models import UserModel, Shop, Category, Product
+from .serializers import UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer
 
 
 def validate_email(email):
@@ -156,3 +160,47 @@ class ShopDetailView(APIView):
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Token неверный'})
         else:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Магазин не найден'})
+
+
+class CategoryView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)
+
+
+class ProductView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)
+
+
+class ShopUpdate(APIView):
+
+    def post(self, request, *args, **kwargs):
+
+        if request.headers.get('Token') is None:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
+        token = check_token(request.headers['Token'])
+        if token is None:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Token неверный'})
+        user = UserModel.objects.get(email=token.user)
+        if user.type != 'shop':
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
+
+        url = request.data.get('url')
+        if url:
+            validate_url = URLValidator()
+            try:
+                validate_url(url)
+            except ValidationError:
+                return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неверно указан URL'})
+            file = requests.get(url).content
+            data = load_yaml(file, Loader=Loader)
+
+            return JsonResponse({'Status': 'OK'})
+
+        return JsonResponse({'Status': 'Ошибка!', 'Error': 'Не указан URL'})

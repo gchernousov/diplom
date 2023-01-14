@@ -1,10 +1,6 @@
 from django.db import models
-from django.contrib.auth.models import PermissionsMixin
-from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.base_user import BaseUserManager
-from django.utils import timezone
-from rest_framework.authtoken.models import Token
 
 
 USER_TYPES = (
@@ -82,3 +78,59 @@ class Shop(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Category(models.Model):
+
+    name = models.CharField(max_length=48, verbose_name='Название')
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+
+    def __str__(self):
+        return self.name
+
+
+class Product(models.Model):
+
+    name = models.CharField(max_length=96, verbose_name='Название')
+    category = models.ForeignKey(Category, related_name='products', blank=True,
+                                 on_delete=models.CASCADE, verbose_name='Категория')
+    shop = models.ForeignKey(Shop, related_name='products', on_delete=models.CASCADE, verbose_name='Магазин')
+    external_id = models.PositiveIntegerField(verbose_name='Внешний ID')
+    quantity = models.PositiveIntegerField(verbose_name='Количество')
+    price = models.PositiveIntegerField(verbose_name='Цена')
+    price_rcc = models.PositiveIntegerField(verbose_name='Розничная цена')
+
+    class Meta:
+        verbose_name = 'Товар'
+        verbose_name_plural = 'Товары'
+
+    def __str__(self):
+        return self.name
+
+
+class Parameter(models.Model):
+
+    name = models.CharField(max_length=48, verbose_name='Название')
+
+    class Meta:
+        verbose_name = 'Параметр'
+        verbose_name_plural = 'Параметры'
+
+    def __str__(self):
+        return self.name
+
+
+class ProductParameter(models.Model):
+
+    product = models.ForeignKey(Product, related_name='product_parameters',
+                                on_delete=models.CASCADE, verbose_name='Товар')
+    parameter = models.ForeignKey(Parameter, related_name='product_parameters',
+                                  on_delete=models.CASCADE, verbose_name='Параметр')
+    value = models.CharField(max_length=48, verbose_name='Значение')
+
+    class Meta:
+        verbose_name = 'Параметр товара'
+        verbose_name_plural = 'Параметры товаров'
