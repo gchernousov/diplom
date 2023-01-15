@@ -9,5 +9,9 @@ urlpatterns = [
     path('shop/<int:shop_id>', v.ShopDetailView.as_view()),
     path('shop/update/', v.ShopUpdate.as_view()),
     path('categories/', v.CategoryView.as_view()),
-    path('products/', v.ProductView.as_view())
+    path('products/', v.ProductView.as_view()),
+    path('products/<int:product_id>', v.ProductDetailView.as_view()),
+    path('basket/', v.BasketView.as_view())
 ]
+
+# Добавить возможность просмотра товаров конкретного магазина

@@ -7,17 +7,18 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 import requests
 from yaml import load as load_yaml, Loader
-from pprint import pprint
 
-from .models import UserModel, Shop, Category, Product, Parameter, ProductParameter
-from .serializers import UserSerializer, ShopSerializer, CategorySerializer, ProductSerializer
+from .models import UserModel, Shop, Category, Product, Parameter, ProductParameter, Order, OrderItem
+from .serializers import UserSerializer, ShopSerializer, CategorySerializer, \
+    ProductSerializer, ProductDetailSerializer, OrderItemSerializer
 
 
 def validate_email(email):
-    query = UserModel.objects.filter(email=email)
-    if len(query) == 0:
+    try:
+        UserModel.objects.get(email=email)
+        return False
+    except ObjectDoesNotExist:
         return True
-    return False
 
 
 def check_login(email, password):
@@ -48,6 +49,14 @@ def check_shop(user_id, shop_name):
         return True
 
 
+def order_price(product_list):
+    price = 0
+    for n in product_list:
+        product = Product.objects.get(pk=n)
+        price += product.price_rcc
+    return price
+
+
 class AccountRegister(APIView):
 
     def get(self, request, *args, **kwargs):
@@ -56,9 +65,10 @@ class AccountRegister(APIView):
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
-        register_keys = {'email', 'password', 'first_name', 'last_name', 'company', 'position', 'type'}
+        register_keys = {'email', 'password'}
         if register_keys.issubset(request.data):
             if validate_email(request.data['email']):
+                # добавить проверку email и password (validate)
                 user_serializer = UserSerializer(data=request.data)
                 if user_serializer.is_valid():
                     new_user = user_serializer.save()
@@ -180,9 +190,32 @@ class CategoryView(APIView):
 class ProductView(APIView):
 
     def get(self, request, *args, **kwargs):
-        products = Product.objects.all()
+        search = request.query_params.get('name')
+        if search is None:
+            products = Product.objects.filter(shop__state=True)
+            serializer = ProductSerializer(products, many=True)
+            return Response(serializer.data)
+        products = Product.objects.filter(shop__state=True, name__icontains=search)
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
+
+
+class ProductDetailView(APIView):
+
+    def get_object(self, product_id):
+        try:
+            product = Product.objects.get(pk=product_id)
+            return product
+        except ObjectDoesNotExist:
+            return None
+
+    def get(self, request, product_id, *args, **kwargs):
+        product = self.get_object(product_id)
+        if product is not None:
+            product_serializer = ProductDetailSerializer(product)
+            return Response(product_serializer.data)
+        else:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Товар не найден'})
 
 
 class ShopUpdate(APIView):
@@ -208,7 +241,6 @@ class ShopUpdate(APIView):
             file = requests.get(url).content
             data = load_yaml(file, Loader=Loader)
 
-            # pprint(data)
             shop_name = data.get('shop')
             if shop_name is None:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Отсутствует название магазина'})
@@ -231,15 +263,7 @@ class ShopUpdate(APIView):
                         'price_rcc': product['price_rcc']
                     }
                 )
-                # new_product = Product.objects.create(
-                #     name=product['name'],
-                #     category=category,
-                #     shop=shop,
-                #     external_id=product['external_id'],
-                #     quantity=product['quantity'],
-                #     price=product['price'],
-                #     price_rcc=product['price_rcc']
-                # )
+
                 for pname, pvalue in product['parameters'].items():
                     param, _ = Parameter.objects.get_or_create(name=pname)
 
@@ -249,3 +273,51 @@ class ShopUpdate(APIView):
             return JsonResponse({'Status': 'OK', 'Message': 'Товары успешно добавлены!'})
 
         return JsonResponse({'Status': 'Ошибка!', 'Error': 'Не указан URL'})
+
+
+class BasketView(APIView):
+
+    def get_object(self, product_id):
+        try:
+            product = Product.objects.get(pk=product_id)
+            return product
+        except ObjectDoesNotExist:
+            return None
+
+    def get(self):
+        pass
+
+    def post(self, request, *args, **kwargs):
+
+        if request.headers.get('Token') is None:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
+        token = check_token(request.headers['Token'])
+        if token is None:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Token неверный'})
+        user = UserModel.objects.get(email=token.user)
+        if user.type == 'shop':
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
+
+        items = request.data.get('items')
+        if items is None:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неправильно указан либо отсутствует параметр items'})
+        order = Order.objects.create(user=user, status='basket')
+        product_list = []
+        for item in items:
+            product_list.append(item['product'])
+            item['order'] = order.id
+            serializer = OrderItemSerializer(data=item)
+            if serializer.is_valid():
+                serializer.save()
+
+        price = order_price(product_list)
+        return JsonResponse({'Status': 'Успешно',
+                             'Message': 'Товары добавлены в корзину',
+                             'Номер заказа': order.id,
+                             'Общая сумма заказа': price})
+
+    def patch(self):
+        pass
+
+    def delete(self):
+        pass
