@@ -6,7 +6,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserModel
-        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'middle_name', 'company', 'position', 'type',)
+        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'middle_name',
+                  'company', 'position', 'type',)
 
 
 class ShopSerializer(serializers.ModelSerializer):
@@ -22,7 +23,7 @@ class ProductNameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('external_id', 'name', 'shop', 'price',)
+        fields = ('id', 'name', 'shop', 'price_rcc',)
 
 
 class CategorySerializer(serializers.ModelSerializer):

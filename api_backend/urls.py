@@ -11,7 +11,8 @@ urlpatterns = [
     path('categories/', v.CategoryView.as_view()),
     path('products/', v.ProductView.as_view()),
     path('products/<int:product_id>', v.ProductDetailView.as_view()),
-    path('basket/', v.BasketView.as_view())
+    path('basket/', v.BasketView.as_view()),
+    path('order/', v.OrderView.as_view())
 ]
 
 # Добавить возможность просмотра товаров конкретного магазина

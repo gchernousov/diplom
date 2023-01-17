@@ -5,15 +5,27 @@ from django.http import JsonResponse
 from django.db.models import ObjectDoesNotExist
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
+
 import requests
 from yaml import load as load_yaml, Loader
 
+from .validation import APIError
 from .models import UserModel, Shop, Category, Product, Parameter, ProductParameter, Order, OrderItem
 from .serializers import UserSerializer, ShopSerializer, CategorySerializer, \
-    ProductSerializer, ProductDetailSerializer, OrderItemSerializer
+    ProductSerializer, ProductDetailSerializer
 
 
-def validate_email(email):
+def get_object(model, object_id):
+    """Проверка наличия объекта в базе"""
+    try:
+        obj = model.objects.get(pk=object_id)
+        return obj
+    except ObjectDoesNotExist:
+        return None
+
+
+def check_email(email: str) -> bool:
+    """Проверка наличия email в базе"""
     try:
         UserModel.objects.get(email=email)
         return False
@@ -21,7 +33,8 @@ def validate_email(email):
         return True
 
 
-def check_login(email, password):
+def check_login(email: str, password: str) -> bool:
+    """Проверка соответствия email и password"""
     try:
         user = UserModel.objects.get(email=email)
     except ObjectDoesNotExist:
@@ -32,11 +45,25 @@ def check_login(email, password):
 
 
 def check_token(token):
+    """Проверка наличия токена в базе"""
     try:
         token = Token.objects.get(key=token)
         return token
     except ObjectDoesNotExist:
         return None
+
+
+def auth_check(request):
+    """Проверка наличия токена в заголовке, его наличия в базе
+    и возврат объекта пользователя, если все успешно"""
+
+    if request.headers.get('Token') is None:
+        raise APIError('Не указан Token. Вы не авторизованы.')
+    token = check_token(request.headers['Token'])
+    if token is None:
+        raise APIError('Token неверный.')
+    user = UserModel.objects.get(email=token.user)
+    return user
 
 
 def check_shop(user_id, shop_name):
@@ -57,17 +84,23 @@ def order_price(product_list):
     return price
 
 
+def upd_quantity(order_id: int, product_id: int, quantity: int) -> int:
+    """Сложение количества одинаковых товаров при повторном POST запросе в BasketView"""
+    item = OrderItem.objects.filter(order_id=order_id, product_id=product_id)
+    if len(item) == 0:
+        return quantity
+    quantity = item[0].quantity + quantity
+    return quantity
+
+
 class AccountRegister(APIView):
 
-    def get(self, request, *args, **kwargs):
-        queryset = UserModel.objects.all()
-        serializer = UserSerializer(queryset, many=True)
-        return Response(serializer.data)
+    """View для регистрации пользователей"""
 
     def post(self, request, *args, **kwargs):
         register_keys = {'email', 'password'}
         if register_keys.issubset(request.data):
-            if validate_email(request.data['email']):
+            if check_email(request.data['email']):
                 # добавить проверку email и password (validate)
                 user_serializer = UserSerializer(data=request.data)
                 if user_serializer.is_valid():
@@ -83,6 +116,8 @@ class AccountRegister(APIView):
 
 class AccountLogin(APIView):
 
+    """View для получения Token"""
+
     def post(self, request, *args, **kwargs):
         register_keys = {'email', 'password'}
         if register_keys.issubset(request.data):
@@ -97,43 +132,40 @@ class AccountLogin(APIView):
 
 class ShopView(APIView):
 
+    """View для просмотра и добавления магазинов"""
+
     def get(self, request, *args, **kwargs):
         shops = Shop.objects.all()
         shop_serializer = ShopSerializer(shops, many=True)
         return Response(shop_serializer.data)
 
     def post(self, request, *args, **kwargs):
-        if request.headers.get('Token') is None:
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
-        token = check_token(request.headers['Token'])
-        if token is not None:
-            user = UserModel.objects.get(email=token.user)
-            if user.type != 'shop':
-                return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
-            if {'name'}.issubset(request.data):
-                request.data['owner'] = user.id
-                shop_serializer = ShopSerializer(data=request.data)
-                if shop_serializer.is_valid():
-                    shop_serializer.save()
-                    return Response(shop_serializer.data)
-                else:
-                    return JsonResponse({'Status': 'Ошибка!', 'Error': shop_serializer.errors})
+        user = auth_check(request)
+        if user.type != 'shop':
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
+        if {'name'}.issubset(request.data):
+            request.data['owner'] = user.id
+            shop_serializer = ShopSerializer(data=request.data)
+            if shop_serializer.is_valid():
+                shop_serializer.save()
+                return Response(shop_serializer.data)
             else:
-                return JsonResponse({'Status': 'Ошибка!', 'Error': 'Необходимо ввести имя магазина (name)'})
-        return JsonResponse({'Status': 'Ошибка!', 'Error': 'Token неверный'})
+                return JsonResponse({'Status': 'Ошибка!', 'Error': shop_serializer.errors})
+        else:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Необходимо ввести имя магазина (name)'})
 
 
 class ShopDetailView(APIView):
 
-    def get_object(self, shop_id):
+    def get_object(self, model, shop_id):
         try:
-            shop = Shop.objects.get(pk=shop_id)
+            shop = model.objects.get(pk=shop_id)
             return shop
         except ObjectDoesNotExist:
             return None
 
     def get(self, request, shop_id, *args, **kwargs):
-        shop = self.get_object(shop_id)
+        shop = get_object(Shop, shop_id)
         if shop is not None:
             shop_serializer = ShopSerializer(shop)
             return Response(shop_serializer.data)
@@ -141,7 +173,7 @@ class ShopDetailView(APIView):
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Магазин не найден'})
 
     def patch(self, request, shop_id, *args, **kwargs):
-        shop = self.get_object(shop_id)
+        shop = get_object(Shop, shop_id)
         if shop is not None:
             if request.headers.get('Token') is None:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
@@ -161,7 +193,7 @@ class ShopDetailView(APIView):
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Магазин не найден'})
 
     def delete(self, request, shop_id, *args, **kwargs):
-        shop = self.get_object(shop_id)
+        shop = get_object(Shop, shop_id)
         if shop is not None:
             if request.headers.get('Token') is None:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
@@ -181,6 +213,8 @@ class ShopDetailView(APIView):
 
 class CategoryView(APIView):
 
+    """View для просмотра категорий и товаров в каждой категории"""
+
     def get(self, request, *args, **kwargs):
         categories = Category.objects.all()
         serializer = CategorySerializer(categories, many=True)
@@ -189,12 +223,12 @@ class CategoryView(APIView):
 
 class ProductView(APIView):
 
+    """View для поиска товаров по названию"""
+
     def get(self, request, *args, **kwargs):
         search = request.query_params.get('name')
         if search is None:
-            products = Product.objects.filter(shop__state=True)
-            serializer = ProductSerializer(products, many=True)
-            return Response(serializer.data)
+            search = ''
         products = Product.objects.filter(shop__state=True, name__icontains=search)
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
@@ -202,15 +236,8 @@ class ProductView(APIView):
 
 class ProductDetailView(APIView):
 
-    def get_object(self, product_id):
-        try:
-            product = Product.objects.get(pk=product_id)
-            return product
-        except ObjectDoesNotExist:
-            return None
-
     def get(self, request, product_id, *args, **kwargs):
-        product = self.get_object(product_id)
+        product = get_object(Product, product_id)
         if product is not None:
             product_serializer = ProductDetailSerializer(product)
             return Response(product_serializer.data)
@@ -222,12 +249,8 @@ class ShopUpdate(APIView):
 
     def post(self, request, *args, **kwargs):
 
-        if request.headers.get('Token') is None:
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
-        token = check_token(request.headers['Token'])
-        if token is None:
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Token неверный'})
-        user = UserModel.objects.get(email=token.user)
+        user = auth_check(request)
+
         if user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
 
@@ -277,47 +300,77 @@ class ShopUpdate(APIView):
 
 class BasketView(APIView):
 
-    def get_object(self, product_id):
+    def get_basket(self, user):
         try:
-            product = Product.objects.get(pk=product_id)
-            return product
+            order = Order.objects.get(user=user, status='basket')
+            return order
         except ObjectDoesNotExist:
             return None
 
-    def get(self):
-        pass
+    def get(self, request, *args, **kwargs):
+
+        user = auth_check(request)
+        basket = self.get_basket(user)
+        if basket is None:
+            return JsonResponse({'Status': 'Корзина пуста'})
+        items = OrderItem.objects.filter(order=basket.id)
+        basket_items = []
+        total_price = 0
+        for item in items:
+            total_price += item.product.price_rcc * item.quantity
+            basket_items.append(
+                {'Товар': item.product.name, 'Цена': item.product.price_rcc, 'Кол-во': item.quantity}
+            )
+        return JsonResponse({'Status': 'OK', 'Корзина': basket_items, 'Сумма заказа': total_price})
 
     def post(self, request, *args, **kwargs):
 
-        if request.headers.get('Token') is None:
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Вы не авторизованы'})
-        token = check_token(request.headers['Token'])
-        if token is None:
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Token неверный'})
-        user = UserModel.objects.get(email=token.user)
+        user = auth_check(request)
         if user.type == 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
 
         items = request.data.get('items')
         if items is None:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неправильно указан либо отсутствует параметр items'})
-        order = Order.objects.create(user=user, status='basket')
-        product_list = []
+        order, _ = Order.objects.get_or_create(user=user, status='basket')
         for item in items:
-            product_list.append(item['product'])
-            item['order'] = order.id
-            serializer = OrderItemSerializer(data=item)
-            if serializer.is_valid():
-                serializer.save()
-
-        price = order_price(product_list)
+            OrderItem.objects.update_or_create(order=order,
+                                               product_id=item['product'],
+                                               defaults={'quantity': upd_quantity(
+                                                   order.id,
+                                                   item['product'],
+                                                   item['quantity'])})
         return JsonResponse({'Status': 'Успешно',
-                             'Message': 'Товары добавлены в корзину',
-                             'Номер заказа': order.id,
-                             'Общая сумма заказа': price})
+                             'Message': 'Товары добавлены в корзину'})
 
     def patch(self):
         pass
 
     def delete(self):
         pass
+
+
+class OrderView(APIView):
+
+    def get(self, request, *args, **kwargs):
+
+        user = auth_check(request)
+
+        orders = Order.objects.filter(user=user).exclude(status='basket')
+        order_list = []
+        for order in orders:
+            order_list.append(
+                {'Заказ №': order.id, 'Дата': order.date, 'Статус': order.status}
+            )
+        return JsonResponse({'Status': 'Успешно', 'Заказы': order_list})
+
+    def post(self, request, *args, **kwargs):
+
+        user = auth_check(request)
+
+        order = Order.objects.filter(user=user, status='basket')
+        if len(order) == 0:
+            return JsonResponse({'Status': 'Ошибка!',
+                                 'Error': 'Прежде чем подтвердить заказ, добавьте товары в корзину'})
+        order.update(status='new')
+        return JsonResponse({'Status': 'Успешно', 'Message': 'Заказ оформлен'})
