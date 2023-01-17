@@ -247,10 +247,11 @@ class ProductDetailView(APIView):
 
 class ShopUpdate(APIView):
 
+    """View для добавления товаров в магазин по url из yaml-файла"""
+
     def post(self, request, *args, **kwargs):
 
         user = auth_check(request)
-
         if user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
 
@@ -267,43 +268,44 @@ class ShopUpdate(APIView):
             shop_name = data.get('shop')
             if shop_name is None:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Отсутствует название магазина'})
-            else:
-                # if check_shop(user.id, shop_name):
-                shop,_ = Shop.objects.get_or_create(name=shop_name, owner=user.id)
+            shop, _ = Shop.objects.get_or_create(name=shop_name, owner=user.id)
 
             products = data.get('goods')
             if products is None:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Отсутствует список товаров'})
             for product in products:
-                category, _ = Category.objects.get_or_create(name=product['category'])
+                category, _ = Category.objects.get_or_create(name=product.get('category'))
                 new_product, _ = Product.objects.update_or_create(
                     shop=shop, external_id=product['external_id'],
                     defaults={
-                        'name': product['name'],
+                        'name': product.get('name'),
                         'category': category,
-                        'quantity': product['quantity'],
-                        'price': product['price'],
-                        'price_rcc': product['price_rcc']
+                        'quantity': product.get('quantity'),
+                        'price': product.get('price'),
+                        'price_rcc': product.get('price_rcc')
                     }
                 )
 
-                for pname, pvalue in product['parameters'].items():
-                    param, _ = Parameter.objects.get_or_create(name=pname)
+                params = product.get('parameters')
+                if params is not None:
+                    for pname, pvalue in params.items():
+                        param, _ = Parameter.objects.get_or_create(name=pname)
 
-                    ProductParameter.objects.update_or_create(product=new_product, parameter=param,
-                                                              defaults={'value': pvalue})
+                        ProductParameter.objects.update_or_create(product=new_product, parameter=param,
+                                                                  defaults={'value': pvalue})
 
             return JsonResponse({'Status': 'OK', 'Message': 'Товары успешно добавлены!'})
-
         return JsonResponse({'Status': 'Ошибка!', 'Error': 'Не указан URL'})
 
 
 class BasketView(APIView):
 
+    """View для взаимодействия с корзиной"""
+
     def get_basket(self, user):
         try:
-            order = Order.objects.get(user=user, status='basket')
-            return order
+            basket = Order.objects.get(user=user, status='basket')
+            return basket
         except ObjectDoesNotExist:
             return None
 
@@ -312,7 +314,7 @@ class BasketView(APIView):
         user = auth_check(request)
         basket = self.get_basket(user)
         if basket is None:
-            return JsonResponse({'Status': 'Корзина пуста'})
+            return JsonResponse({'Status': 'OK', 'Message': 'Корзина пуста'})
         items = OrderItem.objects.filter(order=basket.id)
         basket_items = []
         total_price = 0
@@ -321,14 +323,11 @@ class BasketView(APIView):
             basket_items.append(
                 {'Товар': item.product.name, 'Цена': item.product.price_rcc, 'Кол-во': item.quantity}
             )
-        return JsonResponse({'Status': 'OK', 'Корзина': basket_items, 'Сумма заказа': total_price})
+        return JsonResponse({'Status': 'OK', 'Корзина': basket_items, 'Примерная сумма заказа': total_price})
 
     def post(self, request, *args, **kwargs):
 
         user = auth_check(request)
-        if user.type == 'shop':
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
-
         items = request.data.get('items')
         if items is None:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неправильно указан либо отсутствует параметр items'})
@@ -343,11 +342,30 @@ class BasketView(APIView):
         return JsonResponse({'Status': 'Успешно',
                              'Message': 'Товары добавлены в корзину'})
 
-    def patch(self):
-        pass
+    def patch(self, request, *args, **kwargs):
 
-    def delete(self):
-        pass
+        user = auth_check(request)
+        basket = self.get_basket(user)
+        items = request.data.get('items')
+        if items is None:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неправильно указан либо отсутствует параметр items'})
+        if basket is None:
+            return JsonResponse({'Status': 'OK', 'Message': 'Корзина пуста'})
+
+        for item in items:
+            OrderItem.objects.update_or_create(order=basket,
+                                               product_id=item['product'],
+                                               defaults={'quantity': item['quantity']})
+        return JsonResponse({'Status': 'Успешно',
+                             'Message': 'Корзина обновлена'})
+
+    def delete(self, request, *args, **kwargs):
+
+        user = auth_check(request)
+        basket = self.get_basket(user)
+        if basket is not None:
+            basket.delete()
+        return JsonResponse({'Status': 'OK', 'Message': 'Корзина пуста'})
 
 
 class OrderView(APIView):
