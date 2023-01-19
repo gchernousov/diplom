@@ -2,6 +2,8 @@ shop: Digital Shop
 
 goods:
   - name: Apple MacBook Air 13 M1/8/256 Space Gray
+    brand: Apple
+    model: M1
     category: Ноутбуки
     external_id: 96617
     quantity: 7
@@ -20,6 +22,8 @@ goods:
       "Работа от аккумулятора": до 18 часов
       "Цвет": серый
   - name: Honor MagicBook 15 R5/8/512 Gray
+    brand: Honor
+    model: R5
     category: Ноутбуки
     external_id: 96617
     quantity: 7
@@ -38,6 +42,8 @@ goods:
       "Работа от аккумулятора": до 11 ч 30 мин
       "Цвет": серый
   - name: HUAWEI MateBook D16 RLEF-X Space Grey
+    brand: Huawei
+    model: D16 RLEF-X
     category: Ноутбуки
     external_id: 96761
     quantity: 3
@@ -55,6 +61,8 @@ goods:
       "Вес (кг)": 1.71
       "Цвет": серый
   - name: Samsung Galaxy S21 8/128GB (серый)
+    brand: Samsung
+    model: S21
     category: Смартфоны
     external_id: 95284
     quantity: 6
@@ -71,6 +79,8 @@ goods:
       "Число SIM карт": 2
       "Цвет": серый
   - name: Samsung Galaxy A53 8/256GB (белый)
+    brand: Samsung
+    model: S53
     category: Смартфоны
     external_id: 95213
     quantity: 11

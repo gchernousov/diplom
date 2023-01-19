@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from api_backend.models import UserModel, Shop, Category, Product, ProductParameter, OrderItem
+from api_backend.models import UserModel, ClientContact, Shop, Category, \
+    Product, ProductParameter, Order, OrderItem
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -8,6 +9,13 @@ class UserSerializer(serializers.ModelSerializer):
         model = UserModel
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'middle_name',
                   'company', 'position', 'type',)
+
+
+class ContactSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ClientContact
+        fields = ('id', 'user', 'city', 'street', 'house', 'building', 'apartment', 'phone',)
 
 
 class ShopSerializer(serializers.ModelSerializer):
@@ -66,8 +74,39 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                   'shop', 'external_id', 'quantity', 'price', 'price_rcc',)
 
 
+class ProductShortInfo(serializers.ModelSerializer):
+
+    class Meta:
+        model = Product
+        fields = ('external_id', 'name',)
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
         fields = ('id', 'order', 'product', 'quantity',)
+        read_only_fields = ('id',)
+        extra_kwargs = {
+            'order': {'write_only': True}
+        }
+
+
+class OrderItemInfo(serializers.ModelSerializer):
+
+    product = ProductShortInfo(read_only=True)
+    # product = serializers.StringRelatedField()
+
+    class Meta:
+        model = OrderItem
+        fields = ('product',)
+
+
+class OrderSerializer(serializers.ModelSerializer):
+
+    user = serializers.StringRelatedField()
+    ordered_items = OrderItemInfo(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ('id', 'user', 'date', 'status', 'ordered_items',)

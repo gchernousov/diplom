@@ -104,6 +104,8 @@ class Category(models.Model):
 class Product(models.Model):
 
     name = models.CharField(max_length=96, verbose_name='Название')
+    brand = models.CharField(max_length=24, blank=True, verbose_name='Бренд')
+    model = models.CharField(max_length=24, blank=True, verbose_name='Модель')
     category = models.ForeignKey(Category, related_name='products', blank=True,
                                  on_delete=models.CASCADE, verbose_name='Категория')
     shop = models.ForeignKey(Shop, related_name='products', on_delete=models.CASCADE, verbose_name='Магазин')
@@ -148,8 +150,7 @@ class ProductParameter(models.Model):
 
 class ClientContact(models.Model):
 
-    user = models.ForeignKey(UserModel, related_name='contacts',
-                             on_delete=models.CASCADE, verbose_name='Пользователь')
+    user = models.OneToOneField(UserModel, on_delete=models.CASCADE, verbose_name='Пользователь')
     city = models.CharField(max_length=48, verbose_name='Город')
     street = models.CharField(max_length=48, verbose_name='Улица')
     house = models.CharField(max_length=12, verbose_name='Номер дома')

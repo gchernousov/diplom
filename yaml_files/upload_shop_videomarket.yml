@@ -2,6 +2,8 @@ shop: Video Market
 
 goods:
   - name: Samsung Galaxy A13 4/64GB (черный)
+    brand: Samsung
+    model: S13
     category: Смартфоны
     external_id: 500245
     quantity: 12
@@ -18,6 +20,8 @@ goods:
       "Число SIM карт": 2
       "Цвет": черный
   - name: Samsung Galaxy A13 4/64GB (белый)
+    brand: Samsung
+    model: A13
     category: Смартфоны
     external_id: 500246
     quantity: 15
@@ -34,6 +38,8 @@ goods:
       "Число SIM карт": 2
       "Цвет": белый
   - name: Samsung Galaxy A53 8/128GB (белый)
+    brand: Samsung
+    model: A53
     category: Смартфоны
     external_id: 500315
     quantity: 8
@@ -50,6 +56,8 @@ goods:
       "Число SIM карт": 2
       "Цвет": белый
   - name: Samsung Galaxy A53 8/256GB (белый)
+    brand: Samsung
+    model: A53
     category: Смартфоны
     external_id: 500323
     quantity: 5

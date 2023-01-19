@@ -1,7 +1,9 @@
-shop: TVWorldShopMarket
+shop: TVWorld
 
 goods:
   - name: Philips The One 50PUS8506/60
+    brand: Philips
+    model: 50PUS8506/60
     category: Телевизоры
     external_id: 55808
     quantity: 4
@@ -20,6 +22,8 @@ goods:
       "Вес (кг)": 16
       "Цвет": серебристый
   - name: Haier 43 Smart TV K6
+    brand: Haier
+    model: K6
     category: Телевизоры
     external_id: 55327
     quantity: 7
@@ -36,4 +40,24 @@ goods:
       "Smart TV": Да
       "Размеры (мм)": 56х96х7
       "Вес (кг)": 6.5
+      "Цвет": черный
+  - name: LG OLED55C14LB
+    brand: LG
+    model: OLED55C14LB
+    category: Телевизоры
+    external_id: 55589
+    quantity: 2
+    price: 140000
+    price_rcc: 159999
+    parameters:
+      "Диагональ экрана": 139 см
+      "Диагональ (дюйм)": 55
+      "Разрешение экрана": 3840х2160
+      "Формат экрана": 16:9
+      "Ultra HD": Да
+      "Операционная система": WebOS
+      "Звук": OLED Surround
+      "Smart TV": Да
+      "Размеры (мм)": 74х123х25
+      "Вес (кг)": 23
       "Цвет": черный
