@@ -13,8 +13,8 @@ from pprint import pprint
 from .validation import APIError
 from .models import UserModel, Shop, ClientContact, Category, Product, \
     Parameter, ProductParameter, Order, OrderItem
-from .serializers import UserSerializer, ContactSerializer, ShopSerializer, CategorySerializer, \
-    ProductSerializer, ProductDetailSerializer
+from .serializers import UserSerializer, ContactSerializer, ShopSerializer, ShopDetailSerializer, \
+    CategorySerializer, ProductSerializer, ProductDetailSerializer
 
 
 def get_object(model, object_id):
@@ -150,14 +150,14 @@ class ContactView(APIView):
         contact = self.get_contact(user)
         if contact is None:
             return JsonResponse({'Status': ' Ошибка!', 'Error': 'Адрес отсутствует'})
-        serializer = ContactSerializer(data=contact)
+        serializer = ContactSerializer(contact)
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
         user = auth_check(request)
         contact_keys = {'city', 'street', 'house', 'phone'}
         if contact_keys.issubset(request.data):
-            request.data['user'] = user
+            request.data['user'] = user.id
             serializer = ContactSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
@@ -181,7 +181,7 @@ class ContactView(APIView):
 
 class ShopView(APIView):
 
-    """View для просмотра и добавления магазинов"""
+    """View для просмотра, добавления, изменения и удаления магазина"""
 
     def get_shop(self, owner):
         try:
@@ -191,9 +191,13 @@ class ShopView(APIView):
             return None
 
     def get(self, request, *args, **kwargs):
-        shops = Shop.objects.all()
-        shop_serializer = ShopSerializer(shops, many=True)
-        return Response(shop_serializer.data)
+        user = auth_check(request)
+        shop = self.get_shop(user)
+        if shop is not None:
+            shop_serializer = ShopDetailSerializer(shop)
+            return Response(shop_serializer.data)
+        else:
+            return JsonResponse({'Status': 'Ошибка!', 'Error': 'За вами нет закрепленного магазина'})
 
     def post(self, request, *args, **kwargs):
         user = auth_check(request)
@@ -233,19 +237,6 @@ class ShopView(APIView):
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'За вами нет закрепленного магазина'})
         shop.delete()
         return JsonResponse({'Status': 'Успешно', 'Message': 'Магазин удален'})
-
-
-class ShopDetailView(APIView):
-
-    """View для отображения информации о конкретном магазине"""
-
-    def get(self, request, shop_id, *args, **kwargs):
-        shop = get_object(Shop, shop_id)
-        if shop is not None:
-            shop_serializer = ShopSerializer(shop)
-            return Response(shop_serializer.data)
-        else:
-            return JsonResponse({'Status': 'Ошибка!', 'Error': 'Магазин не найден'})
 
 
 class CategoryView(APIView):
@@ -347,9 +338,15 @@ class ShopOrders(APIView):
         user = auth_check(request)
         if user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
-        orders = Order.objects.filter(
-            ordered_items__product__shop__owner=user).exclude(
-            status='basket').select_related('user')
+        status = request.query_params.get('status')
+        if status is not None:
+            orders = Order.objects.filter(
+                ordered_items__product__shop__owner=user, status=status).exclude(
+                status='basket').select_related('user')
+        else:
+            orders = Order.objects.filter(
+                ordered_items__product__shop__owner=user).exclude(
+                status='basket').select_related('user')
 
         order_list = []
         order_ids = []

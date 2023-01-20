@@ -25,6 +25,24 @@ class ShopSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'url', 'owner', 'state',)
 
 
+class ShopProductsSerializer(serializers.ModelSerializer):
+
+    category = serializers.StringRelatedField()
+
+    class Meta:
+        model = Product
+        fields = ('external_id', 'name', 'category', 'quantity',)
+
+
+class ShopDetailSerializer(serializers.ModelSerializer):
+
+    products = ShopProductsSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = Shop
+        fields = ('id', 'name', 'url', 'owner', 'state', 'products', )
+
+
 class ProductNameSerializer(serializers.ModelSerializer):
 
     shop = serializers.StringRelatedField()
