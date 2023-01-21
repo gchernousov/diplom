@@ -58,6 +58,7 @@ def check_shop(user: object, shop_name: str) -> bool:
     except ObjectDoesNotExist:
         return True
 
+
 def auth_check(request):
     """Проверка наличия токена в заголовке, его наличия в базе
     и возврат объекта пользователя, если все успешно"""
