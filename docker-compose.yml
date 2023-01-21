@@ -1,0 +1,18 @@
+version: "3.9"
+
+volumes:
+  pgdata:
+
+services:
+  postgres_db:
+    container_name: db_for_diplom
+    image: postgres:15.1-alpine3.17
+    restart: always
+    ports:
+      - "${PORT}:5432"
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data

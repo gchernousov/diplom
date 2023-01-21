@@ -1,0 +1,75 @@
+shop: Video Market
+
+goods:
+  - name: Samsung Galaxy A13 4/64GB (черный)
+    brand: Samsung
+    model: A13
+    category: Смартфоны
+    external_id: 500245
+    quantity: 12
+    price: 10000
+    price_rcc: 12990
+    parameters:
+      "Диагональ (дюйм)": 6.6
+      "Разрешение экрана": 2400х1080
+      "Оперативная память (Гб)": 4
+      "Встроенная память (Гб)": 64
+      "Версия Android": Android 9.x
+      "Размеры": 159.6х74.8х8.1
+      "Вес (г)": 195
+      "Число SIM карт": 2
+      "Цвет": черный
+  - name: Samsung Galaxy A13 4/64GB (белый)
+    brand: Samsung
+    model: A13
+    category: Смартфоны
+    external_id: 500246
+    quantity: 15
+    price: 10000
+    price_rcc: 12990
+    parameters:
+      "Диагональ (дюйм)": 6.6
+      "Разрешение экрана": 2400х1080
+      "Оперативная память (Гб)": 4
+      "Встроенная память (Гб)": 64
+      "Версия Android": Android 9.x
+      "Размеры": 159.6х74.8х8.1
+      "Вес (г)": 195
+      "Число SIM карт": 2
+      "Цвет": белый
+  - name: Samsung Galaxy A53 8/128GB (белый)
+    brand: Samsung
+    model: A53
+    category: Смартфоны
+    external_id: 500315
+    quantity: 8
+    price: 22000
+    price_rcc: 27990
+    parameters:
+      "Диагональ (дюйм)": 6.5
+      "Разрешение экрана": 2400х1080
+      "Оперативная память (Гб)": 8
+      "Встроенная память (Гб)": 128
+      "Версия Android": Android 12
+      "Размеры": 159.6x73.6x8.1
+      "Вес (г)": 189
+      "Число SIM карт": 2
+      "Цвет": белый
+  - name: Samsung Galaxy A53 8/256GB (белый)
+    brand: Samsung
+    model: A53
+    category: Смартфоны
+    external_id: 500323
+    quantity: 5
+    price: 24000
+    price_rcc: 29990
+    parameters:
+      "Диагональ (дюйм)": 6.5
+      "Разрешение экрана": 2400х1080
+      "Оперативная память (Гб)": 8
+      "Встроенная память (Гб)": 256
+      "Версия Android": Android 12
+      "Размеры": 159.6x73.6x8.1
+      "Вес (г)": 189
+      "Число SIM карт": 2
+      "Цвет": белый
