@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from api_backend.models import UserModel, ClientContact, Shop, Category, \
-    Product, ProductParameter, Order, OrderItem
+    Product, ProductParameter
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -90,41 +90,3 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         model = Product
         fields = ('id', 'name', 'category', 'product_parameters',
                   'shop', 'external_id', 'quantity', 'price', 'price_rcc',)
-
-
-class ProductShortInfo(serializers.ModelSerializer):
-
-    class Meta:
-        model = Product
-        fields = ('external_id', 'name',)
-
-
-class OrderItemSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = OrderItem
-        fields = ('id', 'order', 'product', 'quantity',)
-        read_only_fields = ('id',)
-        extra_kwargs = {
-            'order': {'write_only': True}
-        }
-
-
-class OrderItemInfo(serializers.ModelSerializer):
-
-    product = ProductShortInfo(read_only=True)
-    # product = serializers.StringRelatedField()
-
-    class Meta:
-        model = OrderItem
-        fields = ('product',)
-
-
-class OrderSerializer(serializers.ModelSerializer):
-
-    user = serializers.StringRelatedField()
-    ordered_items = OrderItemInfo(read_only=True)
-
-    class Meta:
-        model = Order
-        fields = ('id', 'user', 'date', 'status', 'ordered_items',)

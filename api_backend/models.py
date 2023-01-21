@@ -170,7 +170,7 @@ class Order(models.Model):
 
     user = models.ForeignKey(UserModel, related_name='orders',
                              on_delete=models.CASCADE, verbose_name='Пользователь')
-    date = models.DateTimeField(auto_now_add=True)
+    date = models.DateTimeField(auto_now=True)
     status = models.CharField(choices=ORDER_STATUS, max_length=9, verbose_name='Статус заказа')
     contact = models.ForeignKey(ClientContact, on_delete=models.CASCADE,
                                 blank=True, null=True, verbose_name='Контакт')

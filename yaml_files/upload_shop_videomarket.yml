@@ -3,7 +3,7 @@ shop: Video Market
 goods:
   - name: Samsung Galaxy A13 4/64GB (черный)
     brand: Samsung
-    model: S13
+    model: A13
     category: Смартфоны
     external_id: 500245
     quantity: 12
