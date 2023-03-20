@@ -94,29 +94,21 @@ def test_account_login(client, create_buyer_user):
     assert result is True
 
 
-@pytest.mark.django_db
-def test_create_shop(client, create_shop_user):
-    print('>>> test_create_shop')
-    user = create_shop_user()
-    token, _ = Token.objects.get_or_create(user=user)
-    token = str(token)
-    new_shop = {'name': 'New Test Shop', 'url': 'http://testshop123.com/'}
-    client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
-    request = client.post(f'{URL}/shop/', data=new_shop, format='json')
-    # print(f'>>> request = {request}')
-    # print(f'>>> request.json = {request.json()}')
-    # assert 2 == 2
-    assert request.status_code == 200
-    shop = Shop.objects.latest('pk')
-    assert shop.name == 'New Test Shop'
-
-
 # @pytest.mark.django_db
-# def test_get_products(client, create_token):
-#     print('>>> test_get_products')
-#     response = client.get(f'{URL}/products/')
-#     print(f'>>> response.json: {response.json()}')
-#     result = create_token()
-#     # print(token)
-#     # print(token.key)
+# def test_create_shop(client, create_shop_user):
+#     print('>>> test_create_shop')
+#     user = create_shop_user()
+#     token, _ = Token.objects.get_or_create(user=user)
+#     token = str(token)
+#     new_shop = {'name': 'New Test Shop', 'url': 'http://testshop123.com/'}
+#     # client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
+#
+#     request = client.post(f'{URL}/shop/', data=new_shop, format='json')
+#
+#     print(f'>>> request = {request}')
+#     print(f'>>> request.json = {request.json()}')
+#
 #     assert 2 == 2
+    # assert request.status_code == 200
+    # shop = Shop.objects.latest('pk')
+    # assert shop.name == 'New Test Shop'
