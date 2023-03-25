@@ -94,20 +94,18 @@ def test_create_shop(client, create_user):
     assert shop.owner == user
 
 
-# @pytest.mark.django_db
-# def test_shop_update(client, create_shop):
-#     print('\n>>> test_shop_update')
-#     shop, token = create_shop
-#     client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
-#     test_file = os.path.join('upload_shop_videomarket.yml')
-#     print(test_file)
-#     data = {'url': test_file}
-#     response = client.post(f'{URL}/shop/update/', data=data, format='json')
-#     print(f'> response.json(): {response.json()}')
-#     # assert response.status_code == 200
-#     # products = Product.objects.all()
-#     # assert len(products) == 4
-#     # product_1 = Product.objects.get(pk=1)
-#     # assert product_1.name == 'Samsung Galaxy A13 4/64GB (черный)'
-#     # assert product_1.shop == shop
-#     assert 2 == 2
+@pytest.mark.django_db
+def test_shop_update(client, create_shop):
+    print('\n>>> test_shop_update')
+    shop, token = create_shop
+    client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
+    url = 'https://raw.githubusercontent.com/gchernousov/diplom/master/tests/api_backend/upload_test_shop_products.yml'
+    data = {'url': url}
+    response = client.post(f'{URL}/shop/update/', data=data, format='json')
+    print(f'> response.json(): {response.json()}')
+    assert response.status_code == 200
+    products = Product.objects.all()
+    assert len(products) == 3
+    product_1 = Product.objects.get(pk=1)
+    assert product_1.name == 'Product 2'
+    assert product_1.shop == shop
