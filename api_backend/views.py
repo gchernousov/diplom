@@ -1,7 +1,8 @@
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.http import JsonResponse
 from django.db.models import ObjectDoesNotExist
 from django.core.validators import URLValidator
@@ -11,7 +12,7 @@ from django.utils import timezone
 import requests
 from yaml import load as load_yaml, Loader
 
-from .validation import get_object, check_shop, check_login, check_email, auth_check
+from .validation import get_object, check_shop, check_login, check_email, auth_check, IsOwner
 from .models import UserModel, Shop, ClientContact, Category, Product, \
     Parameter, ProductParameter, Order, OrderItem
 from .serializers import UserSerializer, ContactSerializer, ShopSerializer, ShopDetailSerializer, \
@@ -80,6 +81,8 @@ class ContactView(APIView):
 
     """View для работы с адресом доставки пользователя"""
 
+    permission_classes = (IsAuthenticated, IsOwner,)
+
     def get_contact(self, user):
         try:
             contact = ClientContact.objects.get(user=user)
@@ -88,18 +91,16 @@ class ContactView(APIView):
             return None
 
     def get(self, request, *args, **kwargs):
-        user = auth_check(request)
-        contact = self.get_contact(user)
+        contact = self.get_contact(request.user.id)
         if contact is None:
             return JsonResponse({'Status': ' Ошибка!', 'Error': 'Адрес отсутствует'})
         serializer = ContactSerializer(contact)
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
-        user = auth_check(request)
         contact_keys = {'city', 'street', 'house', 'phone'}
         if contact_keys.issubset(request.data):
-            request.data['user'] = user.id
+            request.data['user'] = request.user.id
             serializer = ContactSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
@@ -109,8 +110,7 @@ class ContactView(APIView):
         return JsonResponse({'Status': 'Ошибка!', 'Error': 'Указаны не все параметры'})
 
     def patch(self, request, *args, **kwargs):
-        user = auth_check(request)
-        contact = self.get_contact(user)
+        contact = self.get_contact(request.user.id)
         if contact is None:
             return JsonResponse({'Status': ' Ошибка!', 'Error': 'Адрес отсутствует'})
         serializer = ContactSerializer(contact, data=request.data, partial=True)
@@ -125,6 +125,8 @@ class ShopView(APIView):
 
     """View для просмотра, добавления, изменения и удаления магазина"""
 
+    permission_classes = (IsAuthenticated, IsOwner,)
+
     def get_shop(self, owner):
         try:
             shop = Shop.objects.get(owner=owner)
@@ -133,8 +135,7 @@ class ShopView(APIView):
             return None
 
     def get(self, request, *args, **kwargs):
-        user = auth_check(request)
-        shop = self.get_shop(user)
+        shop = self.get_shop(request.user)
         if shop is not None:
             shop_serializer = ShopDetailSerializer(shop)
             return Response(shop_serializer.data)
@@ -142,11 +143,10 @@ class ShopView(APIView):
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'За вами нет закрепленного магазина'})
 
     def post(self, request, *args, **kwargs):
-        user = auth_check(request)
-        if user.type != 'shop':
+        if request.user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
         if {'name'}.issubset(request.data):
-            request.data['owner'] = user.id
+            request.data['owner'] = request.user.id
             shop_serializer = ShopSerializer(data=request.data)
             if shop_serializer.is_valid():
                 shop_serializer.save()
@@ -157,10 +157,9 @@ class ShopView(APIView):
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Необходимо ввести имя магазина (name)'})
 
     def patch(self, request, *args, **kwargs):
-        user = auth_check(request)
-        if user.type != 'shop':
+        if request.user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
-        shop = self.get_shop(user)
+        shop = self.get_shop(request.user)
         if shop is None:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'За вами нет закрепленного магазина'})
         shop_serializer = ShopSerializer(shop, data=request.data, partial=True)
@@ -171,24 +170,21 @@ class ShopView(APIView):
             return JsonResponse({'Status': 'Ошибка!', 'Error': shop_serializer.errors})
 
     def delete(self, request, *args, **kwargs):
-        user = auth_check(request)
-        if user.type != 'shop':
+        if request.user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
-        shop = self.get_shop(user)
+        shop = self.get_shop(request.user)
         if shop is None:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'За вами нет закрепленного магазина'})
         shop.delete()
         return JsonResponse({'Status': 'Успешно', 'Message': 'Магазин удален'})
 
 
-class CategoryView(APIView):
+class CategoryView(ListAPIView):
 
     """View для просмотра категорий и товаров в каждой категории"""
 
-    def get(self, request, *args, **kwargs):
-        categories = Category.objects.all()
-        serializer = CategorySerializer(categories, many=True)
-        return Response(serializer.data)
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
 
 
 class ProductView(ListAPIView):
@@ -231,9 +227,10 @@ class ShopUpdate(APIView):
 
     """View для добавления товаров в магазин по url из yaml-файла"""
 
+    permission_classes = (IsAuthenticated,)
+
     def post(self, request, *args, **kwargs):
-        user = auth_check(request)
-        if user.type != 'shop':
+        if request.user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
 
         url = request.data.get('url')
@@ -249,9 +246,9 @@ class ShopUpdate(APIView):
             shop_name = data.get('shop')
             if shop_name is None:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Отсутствует название магазина'})
-            if check_shop(user, shop_name) is False:
+            if check_shop(request.user, shop_name) is False:
                 return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неправильное название магазина'})
-            shop, _ = Shop.objects.get_or_create(name=shop_name, owner=user)
+            shop, _ = Shop.objects.get_or_create(name=shop_name, owner=request.user)
 
             products = data.get('goods')
             if products is None:
@@ -341,6 +338,8 @@ class BasketView(APIView):
 
     """View для взаимодействия с корзиной"""
 
+    permission_classes = (IsAuthenticated,)
+
     def get_basket(self, user):
         try:
             basket = Order.objects.get(user=user, status='basket')
@@ -349,8 +348,7 @@ class BasketView(APIView):
             return None
 
     def get(self, request, *args, **kwargs):
-        user = auth_check(request)
-        basket = self.get_basket(user)
+        basket = self.get_basket(request.user)
         if basket is None:
             return JsonResponse({'Status': 'OK', 'Message': 'Корзина пуста'})
         items = OrderItem.objects.filter(order=basket.id)
@@ -367,11 +365,10 @@ class BasketView(APIView):
         return JsonResponse({'Status': 'OK', 'Корзина': basket_items, 'Примерная сумма заказа': total_price})
 
     def post(self, request, *args, **kwargs):
-        user = auth_check(request)
         items = request.data.get('items')
         if items is None:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Неправильно указан либо отсутствует параметр items'})
-        order, _ = Order.objects.get_or_create(user=user, status='basket')
+        order, _ = Order.objects.get_or_create(user=request.user, status='basket')
         for item in items:
             OrderItem.objects.update_or_create(order=order,
                                                product_id=item['product'],
@@ -383,8 +380,7 @@ class BasketView(APIView):
                              'Message': 'Товары добавлены в корзину'})
 
     def delete(self, request, *args, **kwargs):
-        user = auth_check(request)
-        basket = self.get_basket(user)
+        basket = self.get_basket(request.user)
         if basket is not None:
             delete_products = request.data.get('products').split(',')
             delete_products = [int(i) for i in delete_products]
@@ -402,9 +398,10 @@ class OrderView(APIView):
 
     """View для оформления заказа"""
 
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request, *args, **kwargs):
-        user = auth_check(request)
-        orders = Order.objects.filter(user=user).exclude(status='basket')
+        orders = Order.objects.filter(user=request.user).exclude(status='basket')
         if len(orders) == 0:
             return JsonResponse({'Status': 'Успешно', 'Заказы': 'У вас еще нет заказов'})
         order_list = []
@@ -415,13 +412,12 @@ class OrderView(APIView):
         return JsonResponse({'Status': 'Успешно', 'Заказы': order_list})
 
     def post(self, request, *args, **kwargs):
-        user = auth_check(request)
-        order = Order.objects.filter(user=user, status='basket')
+        order = Order.objects.filter(user=request.user, status='basket')
         if len(order) == 0:
             return JsonResponse({'Status': 'Ошибка!',
                                  'Error': 'Прежде чем подтвердить заказ, добавьте товары в корзину'})
         try:
-            contact = ClientContact.objects.get(user=user)
+            contact = ClientContact.objects.get(user=request.user)
         except ObjectDoesNotExist:
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'Для оформления заказа необходимо заполнить адрес'})
         order.update(status='new', date=timezone.now(), contact=contact)
