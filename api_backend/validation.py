@@ -1,5 +1,6 @@
 from rest_framework.exceptions import APIException
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import BasePermission
 from django.db.models import ObjectDoesNotExist
 
 from .models import UserModel, Shop
@@ -8,6 +9,11 @@ from .models import UserModel, Shop
 class APIError(APIException):
     status_code = 400
     default_detail = ''
+
+
+class IsOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.user == request.user
 
 
 def get_object(model, object_id):
@@ -57,6 +63,7 @@ def check_shop(user: object, shop_name: str) -> bool:
         return False
     except ObjectDoesNotExist:
         return True
+
 
 def auth_check(request):
     """Проверка наличия токена в заголовке, его наличия в базе
