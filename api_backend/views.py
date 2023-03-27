@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -12,7 +12,7 @@ from django.utils import timezone
 import requests
 from yaml import load as load_yaml, Loader
 
-from .validation import get_object, check_shop, check_login, check_email, auth_check, IsOwner
+from .validation import get_object, check_shop, check_login, check_email
 from .models import UserModel, Shop, ClientContact, Category, Product, \
     Parameter, ProductParameter, Order, OrderItem
 from .serializers import UserSerializer, ContactSerializer, ShopSerializer, ShopDetailSerializer, \
@@ -81,7 +81,7 @@ class ContactView(APIView):
 
     """View для работы с адресом доставки пользователя"""
 
-    permission_classes = (IsAuthenticated, IsOwner,)
+    permission_classes = (IsAuthenticated,)
 
     def get_contact(self, user):
         try:
@@ -125,7 +125,7 @@ class ShopView(APIView):
 
     """View для просмотра, добавления, изменения и удаления магазина"""
 
-    permission_classes = (IsAuthenticated, IsOwner,)
+    permission_classes = (IsAuthenticated,)
 
     def get_shop(self, owner):
         try:
@@ -284,18 +284,19 @@ class ShopOrders(APIView):
 
     """View для просмотра всех заказов текущего магазина"""
 
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request, *args, **kwargs):
-        user = auth_check(request)
-        if user.type != 'shop':
+        if request.user.type != 'shop':
             return JsonResponse({'Status': 'Ошибка!', 'Error': 'У вас нет прав на данное действие'})
         status = request.query_params.get('status')
         if status is not None:
             orders = Order.objects.filter(
-                ordered_items__product__shop__owner=user, status=status).exclude(
+                ordered_items__product__shop__owner=request.user, status=status).exclude(
                 status='basket').select_related('user')
         else:
             orders = Order.objects.filter(
-                ordered_items__product__shop__owner=user).exclude(
+                ordered_items__product__shop__owner=request.user).exclude(
                 status='basket').select_related('user')
 
         order_list = []
@@ -307,7 +308,7 @@ class ShopOrders(APIView):
 
         result = []
         for order in order_list:
-            products = order.ordered_items.filter(product__shop__owner=user)
+            products = order.ordered_items.filter(product__shop__owner=request.user)
             product_list = []
             for product in products:
 
